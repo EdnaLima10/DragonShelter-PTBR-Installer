@@ -1,0 +1,27 @@
+# Conteúdo privado do jogo e resultados locais
+/payload/
+/testes/fontes/
+/testes/execucoes/
+/distribuicao/
+/pacote-nexus/
+/compilacao/
+**/bin/
+**/obj/
+.vs/
+.vscode/
+*.user
+*.suo
+*.bundle
+*.resS
+*.assets
+*.exe
+*.dll
+*.pdb
+*.zip
+*.7z
+*.bak
+*.log
+catalog*.json
+registro.json
+.DS_Store
+Thumbs.db
