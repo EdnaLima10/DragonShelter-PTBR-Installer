@@ -26,7 +26,7 @@ public sealed class Installer
         string aa = Path.Combine(Root, "Dragon Shelter_Data", "StreamingAssets", "aa");
         CatalogPath = Path.Combine(aa, "catalog.json");
         BundlePath = Path.Combine(aa, "StandaloneWindows64", Catalog.BundleName);
-        BackupDirectory = Path.Combine(Root, ".dragon-shelter-ptbr-v1");
+        BackupDirectory = Path.Combine(Root, ".dragon-shelter-ptbr-patch1");
         ValidatePaths();
     }
 
@@ -40,7 +40,7 @@ public sealed class Installer
             for (string? current = path; current != null; current = Path.GetDirectoryName(current))
                 if (File.Exists(current) || Directory.Exists(current))
                     Catalog.Require((File.GetAttributes(current) & FileAttributes.ReparsePoint) == 0,
-                        "Esta V1 não aceita links ou junções no caminho selecionado.");
+                        "Esta edição não aceita links ou junções no caminho selecionado.");
         }
     }
 
@@ -110,13 +110,13 @@ public sealed class Installer
     }
 
     void SaveReceipt(string state) => AtomicWrite(ReceiptPath,
-        JsonSerializer.SerializeToUtf8Bytes(new Receipt("DragonShelterPTBR/V1", Root, state)));
+        JsonSerializer.SerializeToUtf8Bytes(new Receipt("DragonShelterPTBR/Patch1", Root, state)));
 
     void ValidateBackups()
     {
         ValidatePaths();
         var receipt = JsonSerializer.Deserialize<Receipt>(Catalog.Read(ReceiptPath, 8192));
-        Catalog.Require(receipt != null && receipt.Product == "DragonShelterPTBR/V1" &&
+        Catalog.Require(receipt != null && receipt.Product == "DragonShelterPTBR/Patch1" &&
             string.Equals(receipt.Root, Root, StringComparison.OrdinalIgnoreCase),
             "O registro de backup não pertence a esta instalação.");
         Catalog.Require(Catalog.Hash(Catalog.Read(CatalogBackup)) == Catalog.OriginalCatalog &&
@@ -138,7 +138,7 @@ public sealed class Installer
         {
             WriteNew(Path.Combine(pending, "catalog.original.json"), catalog);
             WriteNew(Path.Combine(pending, "bundle.original.bundle"), bundle);
-            WriteNew(Path.Combine(pending, "registro.json"), JsonSerializer.SerializeToUtf8Bytes(new Receipt("DragonShelterPTBR/V1", Root, "backup-pronto")));
+            WriteNew(Path.Combine(pending, "registro.json"), JsonSerializer.SerializeToUtf8Bytes(new Receipt("DragonShelterPTBR/Patch1", Root, "backup-pronto")));
             Catalog.Require(Catalog.Hash(Catalog.Read(Path.Combine(pending, "catalog.original.json"))) == Catalog.OriginalCatalog &&
                 Catalog.Hash(Catalog.Read(Path.Combine(pending, "bundle.original.bundle"))) == Catalog.OriginalBundle, "Falha na cópia de backup.");
             Directory.Move(pending, BackupDirectory);

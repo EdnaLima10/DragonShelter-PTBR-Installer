@@ -9,10 +9,10 @@ namespace DragonShelterPTBR;
 public static class Catalog
 {
     public const string BundleName = "localization-string-tables-english(en)_assets_all.bundle";
-    public const string OriginalCatalog = "d3840b0dcbafa591c087a39cafb27a64d4cff55c93543b83eca58706de95ec84";
-    public const string PatchedCatalog = "e3baa58c3b271a8e587bc3401eac0eab4d961943e3b6e5b656c3672fdc46ddef";
-    public const string OriginalBundle = "6fe36d8aa2c79f356e7634a95ca79f6e38883069174deeddc69f8343111a2b87";
-    public const string TranslatedBundle = "374656a92913e98939216cf813e81ef925a3e5eee7cf2813a9f083f4583f9ffd";
+    public const string OriginalCatalog = "547fac4bc778376129ac0855e405ffd7845aadcc9922471f23cc725222779217";
+    public const string PatchedCatalog = "a345f06d8bb224a727a752a469e364aeb1ffdc07102e8e40aca39be71f482d24";
+    public const string OriginalBundle = "337a77c68bb7429677e4eeb4d6e1f9b8f23398c219456fa2d1d501a9a743c667";
+    public const string TranslatedBundle = "141b5e97717f6708e4ab27f0b95423cae59a57394defe4805faecb8c2f2fdd3d";
     public const string Incompatible = "Esta versão ou combinação de arquivos ainda não é compatível. Nenhum arquivo foi alterado.";
     public static string Hash(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
     public static void Require(bool condition, string message)
@@ -22,10 +22,10 @@ public static class Catalog
     public static byte[] Read(string path, long max = 16 * 1024 * 1024)
     {
         Require(File.Exists(path), "Arquivo necessário não encontrado: " + path);
-        Require(new FileInfo(path).Length <= max, "Arquivo maior que o limite da V1: " + path);
+        Require(new FileInfo(path).Length <= max, "Arquivo maior que o limite desta edição: " + path);
         return File.ReadAllBytes(path);
     }
-    public static void ValidatePayload(byte[] data) => Require(data.Length == 132745 && Hash(data) == TranslatedBundle,
+    public static void ValidatePayload(byte[] data) => Require(data.Length == 136062 && Hash(data) == TranslatedBundle,
         "O bundle PT-BR está corrompido ou não pertence a esta edição. Nenhum arquivo foi alterado.");
 
     public static byte[] Patch(byte[] original)
@@ -85,18 +85,18 @@ public static class Catalog
         Require(length > 0 && length % 2 == 0 && p <= extra.Length - length, "Comprimento inválido.");
         string oldOptions = utf16.GetString(extra, p, length);
         using var options = JsonDocument.Parse(oldOptions);
-        Require(options.RootElement.GetProperty("m_Crc").GetUInt32() == 2252795409 &&
-            options.RootElement.GetProperty("m_BundleSize").GetInt64() == 129866, "Valores originais incompatíveis.");
+        Require(options.RootElement.GetProperty("m_Crc").GetUInt32() == 2920548108 &&
+            options.RootElement.GetProperty("m_BundleSize").GetInt64() == 133123, "Valores originais incompatíveis.");
         string ReplaceNumber(string source, string key, string oldValue, string newValue)
         {
             var regex = new Regex("(\"" + key + "\"\\s*:\\s*)" + oldValue + "\\b");
             Require(regex.Matches(source).Count == 1, "Campo ausente ou duplicado: " + key);
             return regex.Replace(source, m => m.Groups[1].Value + newValue);
         }
-        string updated = ReplaceNumber(oldOptions, "m_Crc", "2252795409", "1220118888");
-        updated = ReplaceNumber(updated, "m_BundleSize", "129866", "132745");
+        string updated = ReplaceNumber(oldOptions, "m_Crc", "2920548108", "3469154707");
+        updated = ReplaceNumber(updated, "m_BundleSize", "133123", "136062");
         byte[] segment = utf16.GetBytes(updated);
-        Require(segment.Length == length, "Esta V1 não suporta deslocar objetos do catálogo.");
+        Require(segment.Length == length, "Esta edição não suporta deslocar objetos do catálogo.");
         segment.CopyTo(extra, p);
         var field = new Regex("(\"m_ExtraDataString\"\\s*:\\s*\")([^\"\\\\]*)(\")");
         Require(field.Matches(text).Count == 1, "Campo Base64 ausente ou duplicado.");

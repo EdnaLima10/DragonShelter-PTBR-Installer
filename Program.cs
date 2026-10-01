@@ -24,7 +24,7 @@ sealed class MainWindow : Form
 
     public MainWindow()
     {
-        Text = "Dragon Shelter — Tradução PT-BR V1";
+        Text = "Dragon Shelter — Tradução PT-BR — Patch 1";
         ClientSize = new Size(760, 410);
         MinimumSize = new Size(680, 400);
         StartPosition = FormStartPosition.CenterScreen;
@@ -34,13 +34,13 @@ sealed class MainWindow : Form
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
-        layout.Controls.Add(new Label { Text = "V1 para a versão homologada. Feche o jogo e aguarde o término de atualizações da Steam.\nA tradução substitui as tabelas em inglês; selecione English no jogo.", Dock = DockStyle.Fill }, 0, 0);
+        layout.Controls.Add(new Label { Text = "Patch 1 — versão homologada. Feche o jogo e aguarde o término de atualizações da Steam.\nA tradução substitui as tabelas em inglês; selecione English no jogo.", Dock = DockStyle.Fill }, 0, 0);
         layout.Controls.Add(folder, 0, 1);
         var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true };
         actions.Controls.AddRange([select, verify, install, restore]);
         layout.Controls.Add(actions, 0, 2);
         layout.Controls.Add(output, 0, 3);
-        layout.Controls.Add(new Label { Text = "Backups: pasta .dragon-shelter-ptbr-v1 dentro da instalação. Não a exclua.\nSe o Windows negar acesso, feche e abra o instalador como administrador.", Dock = DockStyle.Fill }, 0, 4);
+        layout.Controls.Add(new Label { Text = "Backups: pasta .dragon-shelter-ptbr-patch1 dentro da instalação. Não a exclua.\nSe o Windows negar acesso, feche e abra o instalador como administrador.", Dock = DockStyle.Fill }, 0, 4);
         Controls.Add(layout);
         select.Click += (_, _) =>
         {
