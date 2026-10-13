@@ -10,10 +10,10 @@
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <DebugType>none</DebugType>
-    <AssemblyName>DragonShelterPTBR</AssemblyName>
-    <Version>1.1.0</Version>
+    <AssemblyName>DragonShelterPTBR_Patch3</AssemblyName>
+    <Version>1.3.0</Version>
   </PropertyGroup>
   <ItemGroup>
-    <EmbeddedResource Include="../payload/localization-string-tables-english(en)_assets_all_PTBR_PATCH1.bundle" LogicalName="PTBR.bundle" />
+    <EmbeddedResource Include="../payload/localization-string-tables-english(en)_assets_all_PTBR_PATCH3.bundle" LogicalName="PTBR.bundle" />
   </ItemGroup>
 </Project>

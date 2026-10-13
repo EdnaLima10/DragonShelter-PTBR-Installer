@@ -9,10 +9,10 @@ namespace DragonShelterPTBR;
 public static class Catalog
 {
     public const string BundleName = "localization-string-tables-english(en)_assets_all.bundle";
-    public const string OriginalCatalog = "547fac4bc778376129ac0855e405ffd7845aadcc9922471f23cc725222779217";
-    public const string PatchedCatalog = "a345f06d8bb224a727a752a469e364aeb1ffdc07102e8e40aca39be71f482d24";
-    public const string OriginalBundle = "337a77c68bb7429677e4eeb4d6e1f9b8f23398c219456fa2d1d501a9a743c667";
-    public const string TranslatedBundle = "141b5e97717f6708e4ab27f0b95423cae59a57394defe4805faecb8c2f2fdd3d";
+    public const string OriginalCatalog = "f610579475b4086c92a48b6844c838eb29fe51609f6baa156c7449c38cf555b4";
+    public const string PatchedCatalog = "e5bf2827681cebec84fce28fad97eb8646cd2d9b5c2fb0ac194900703cf8b3d4";
+    public const string OriginalBundle = "facfef68c357ac03274d3a79f4f8ad827b8176e836390806c0ec248d75252ec6";
+    public const string TranslatedBundle = "8f2f33ebf439752ab3c41d80951a5ef6c422a9264e1c0c53025575104afd2e22";
     public const string Incompatible = "Esta versão ou combinação de arquivos ainda não é compatível. Nenhum arquivo foi alterado.";
     public static string Hash(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
     public static void Require(bool condition, string message)
@@ -25,7 +25,7 @@ public static class Catalog
         Require(new FileInfo(path).Length <= max, "Arquivo maior que o limite desta edição: " + path);
         return File.ReadAllBytes(path);
     }
-    public static void ValidatePayload(byte[] data) => Require(data.Length == 136062 && Hash(data) == TranslatedBundle,
+    public static void ValidatePayload(byte[] data) => Require(data.Length == 138206 && Hash(data) == TranslatedBundle,
         "O bundle PT-BR está corrompido ou não pertence a esta edição. Nenhum arquivo foi alterado.");
 
     public static byte[] Patch(byte[] original)
@@ -85,25 +85,45 @@ public static class Catalog
         Require(length > 0 && length % 2 == 0 && p <= extra.Length - length, "Comprimento inválido.");
         string oldOptions = utf16.GetString(extra, p, length);
         using var options = JsonDocument.Parse(oldOptions);
-        Require(options.RootElement.GetProperty("m_Crc").GetUInt32() == 2920548108 &&
-            options.RootElement.GetProperty("m_BundleSize").GetInt64() == 133123, "Valores originais incompatíveis.");
+        Require(options.RootElement.GetProperty("m_Crc").GetUInt32() == 1513908345 &&
+            options.RootElement.GetProperty("m_BundleSize").GetInt64() == 135271, "Valores originais incompatíveis.");
         string ReplaceNumber(string source, string key, string oldValue, string newValue)
         {
             var regex = new Regex("(\"" + key + "\"\\s*:\\s*)" + oldValue + "\\b");
             Require(regex.Matches(source).Count == 1, "Campo ausente ou duplicado: " + key);
             return regex.Replace(source, m => m.Groups[1].Value + newValue);
         }
-        string updated = ReplaceNumber(oldOptions, "m_Crc", "2920548108", "3469154707");
-        updated = ReplaceNumber(updated, "m_BundleSize", "133123", "136062");
+        string updated = ReplaceNumber(oldOptions, "m_Crc", "1513908345", "2562807805");
+        updated = ReplaceNumber(updated, "m_BundleSize", "135271", "138206");
         byte[] segment = utf16.GetBytes(updated);
-        Require(segment.Length == length, "Esta edição não suporta deslocar objetos do catálogo.");
-        segment.CopyTo(extra, p);
-        var field = new Regex("(\"m_ExtraDataString\"\\s*:\\s*\")([^\"\\\\]*)(\")");
-        Require(field.Matches(text).Count == 1, "Campo Base64 ausente ou duplicado.");
-        Require(field.Match(text).Groups[2].Value == root.GetProperty("m_ExtraDataString").GetString(), "Base64 divergente.");
-        string output = field.Replace(text, m => m.Groups[1].Value + Convert.ToBase64String(extra) + m.Groups[3].Value);
+        int delta = checked(segment.Length - length);
+        byte[] newExtra = new byte[checked(extra.Length + delta)];
+        extra.AsSpan(0, p).CopyTo(newExtra);
+        BinaryPrimitives.WriteInt32LittleEndian(newExtra.AsSpan(p - 4, 4), segment.Length);
+        segment.CopyTo(newExtra, p);
+        extra.AsSpan(p + length).CopyTo(newExtra.AsSpan(p + segment.Length));
+        // Each extra-data object is referenced by its byte offset in an entry.
+        // Growing the selected JSON object must move every later reference.
+        for (int i = 0; i < count; i++)
+        {
+            int at = 4 + i * 28 + 16;
+            int oldOffset = Int(entries, at);
+            Require(oldOffset < offset || oldOffset == offset || oldOffset >= p + length,
+                "Outra entrada aponta para o interior do objeto alterado.");
+            if (oldOffset >= p + length)
+                BinaryPrimitives.WriteInt32LittleEndian(entries.AsSpan(at, 4), checked(oldOffset + delta));
+        }
+        string ReplaceData(string source, string name, byte[] value)
+        {
+            var field = new Regex("(\"" + name + "\"\\s*:\\s*\")([^\"\\\\]*)(\")");
+            Require(field.Matches(source).Count == 1, "Campo Base64 ausente ou duplicado.");
+            Require(field.Match(source).Groups[2].Value == root.GetProperty(name).GetString(), "Base64 divergente.");
+            return field.Replace(source, m => m.Groups[1].Value + Convert.ToBase64String(value) + m.Groups[3].Value);
+        }
+        string output = ReplaceData(text, "m_ExtraDataString", newExtra);
+        output = ReplaceData(output, "m_EntryDataString", entries);
         byte[] result = utf8.GetBytes(output);
-        Require(result.Length == original.Length && Hash(result) == PatchedCatalog,
+        Require(Hash(result) == PatchedCatalog,
             "O resultado não corresponde ao catálogo corrigido homologado.");
         return result;
     }
