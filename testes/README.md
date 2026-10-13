@@ -1,16 +1,43 @@
-# Testes do instalador Patch 1
+# Testes do instalador — Dragon Shelter PT-BR Patch 3
 
-`testar.ps1` executa 22 testes usando o mesmo Catalog.cs e Installer.cs do instalador. A tradução aprovada precisa estar no caminho privado documentado no README principal.
+## Dragon Shelter — PT-BR Patch 3
 
-Obtenha separadamente estas fontes originais e coloque-as **apenas localmente**, sem commit/upload:
+Instalador Windows x64: `DragonShelterPTBR_Patch3.exe`
 
-| Caminho relativo à raiz | SHA-256 |
-|---|---|
-| testes/fontes/catalog.original.json | 547fac4bc778376129ac0855e405ffd7845aadcc9922471f23cc725222779217 |
-| testes/fontes/bundle.original.bundle | 337a77c68bb7429677e4eeb4d6e1f9b8f23398c219456fa2d1d501a9a743c667 |
-| testes/fontes/pre-patch1/catalog.original.json | d3840b0dcbafa591c087a39cafb27a64d4cff55c93543b83eca58706de95ec84 |
-| testes/fontes/pre-patch1/bundle.original.bundle | 6fe36d8aa2c79f356e7634a95ca79f6e38883069174deeddc69f8343111a2b87 |
+Edição separada, sem substituir o instalador do Patch 2.
 
-As duas primeiras são do Patch 1; as demais são da versão anterior, usadas para testar a recusa dessa versão e a preservação de backups antigos. Não substitua as fontes ausentes por arquivos de outra versão. Sem essas fontes privadas, a suíte completa não pode ser executada; o script informa o arquivo ausente.
+### Instalação
 
-A única adaptação no programa de testes desta cópia é aceitar qualquer nome de checkout, validando os dois arquivos de projeto. Todos os cenários e gravações em uma subpasta exclusiva de testes/execucoes foram mantidos.
+Feche o jogo e espere terminar qualquer atualização da Steam.
+
+Abra o instalador, selecione a pasta raiz Dragon Shelter e clique em **Verificar compatibilidade**.
+
+Instale somente se compatível. Selecione **English** dentro do jogo para usar a tradução.
+
+Não exige instalação separada do .NET. Licenças em `LICENCAS_INSTALADOR_PATCH3`.
+
+### Backups
+
+Backups: `.dragon-shelter-ptbr-patch3` dentro da pasta selecionada.
+
+Não apague essa pasta: **Restaurar original** usa o bundle e o catálogo originais guardados nela.
+
+Backups de Patch 2 e anteriores permanecem separados.
+
+### Compatibilidade
+
+Este instalador exige o catálogo e o bundle originais do Patch 3 homologado.
+
+Não atualiza uma instalação ainda contendo o bundle traduzido do Patch 2.
+
+Se a Steam atualizar novamente o jogo ou os arquivos não corresponderem, a operação será recusada.
+
+### Testes
+
+**26 testes de instalação/restauração aprovados em cópias de teste.**
+
+Ainda não instalado nem testado em uma partida real.
+
+Consulte `RELATORIO_FINAL_PATCH3.md`.
+
+**Não publicado.**

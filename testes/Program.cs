@@ -1,15 +1,26 @@
 using DragonShelterPTBR;
 using System.Text.Json;
 
+if (args.Length == 2 && args[0] == "--payload")
+{
+    var app = System.Reflection.Assembly.LoadFile(Path.GetFullPath(args[1]));
+    if (app.GetName().Name != "DragonShelterPTBR_Patch3" || app.GetName().Version?.ToString() != "1.3.0.0")
+        throw new Exception("Identidade do instalador incorreta");
+    using var resource = app.GetManifestResourceStream("PTBR.bundle") ?? throw new Exception("Bundle incorporado ausente");
+    using var memory = new MemoryStream(); resource.CopyTo(memory);
+    Catalog.ValidatePayload(memory.ToArray());
+    Console.WriteLine("PASS: assembly Release 1.3.0.0 incorpora exatamente o bundle PTBR Patch3: " + Catalog.Hash(memory.ToArray()));
+    return;
+}
+
 // This program is NOT the installer. All mutations are limited to a new test sandbox.
 string project = Path.GetFullPath(args.Single());
-if (!File.Exists(Path.Combine(project, "codigo", "DragonShelterPTBR.csproj")) ||
-    !File.Exists(Path.Combine(project, "testes", "Testes.csproj"))) throw new Exception("Raiz de teste incorreta.");
+if (Path.GetFileName(project) != "INSTALADOR_PATCH3") throw new Exception("Raiz de teste incorreta.");
 string sandbox = Path.Combine(project, "testes", "execucoes", Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(sandbox);
 byte[] original = File.ReadAllBytes(Path.Combine(project, "testes", "fontes", "catalog.original.json"));
 byte[] bundle = File.ReadAllBytes(Path.Combine(project, "testes", "fontes", "bundle.original.bundle"));
-byte[] payload = File.ReadAllBytes(Path.Combine(project, "payload", "localization-string-tables-english(en)_assets_all_PTBR_PATCH1.bundle"));
+byte[] payload = File.ReadAllBytes(Path.Combine(project, "payload", "localization-string-tables-english(en)_assets_all_PTBR_PATCH3.bundle"));
 var results = new List<string>();
 int number = 0;
 void Check(bool condition, string message) { if (!condition) throw new Exception(message); }
@@ -45,18 +56,66 @@ Test("Fontes e payload correspondem aos hashes homologados", () =>
     Catalog.ValidatePayload(payload);
 });
 byte[] patched = Catalog.Patch(original);
-Test("Catálogo reproduz hash homologado; só CRC/tamanho mudam", () =>
+Test("Catálogo reproduz referência independente; CRC/tamanho e offsets corretos", () =>
 {
-    Check(Catalog.Hash(patched) == Catalog.PatchedCatalog && patched.Length == original.Length, "Catálogo divergente.");
+    Check(Catalog.Hash(patched) == Catalog.PatchedCatalog, "Catálogo divergente.");
+    Check(patched.SequenceEqual(File.ReadAllBytes(Path.Combine(project, "testes", "fontes", "catalog.ptbr.esperado.json"))), "Referência independente divergente.");
     using var before = JsonDocument.Parse(original); using var after = JsonDocument.Parse(patched);
     foreach (var property in before.RootElement.EnumerateObject())
-        if (property.Name != "m_ExtraDataString") Check(property.Value.GetRawText() == after.RootElement.GetProperty(property.Name).GetRawText(), "Outro campo mudou.");
+        if (property.Name != "m_ExtraDataString" && property.Name != "m_EntryDataString") Check(property.Value.GetRawText() == after.RootElement.GetProperty(property.Name).GetRawText(), "Outro campo mudou.");
     var a = Convert.FromBase64String(before.RootElement.GetProperty("m_ExtraDataString").GetString()!);
     var b = Convert.FromBase64String(after.RootElement.GetProperty("m_ExtraDataString").GetString()!);
-    Check(a.AsSpan(0, 13643).SequenceEqual(b.AsSpan(0, 13643)) && a.AsSpan(13643 + 686).SequenceEqual(b.AsSpan(13643 + 686)), "Outro objeto mudou.");
-    using var oa = JsonDocument.Parse(System.Text.Encoding.Unicode.GetString(a, 13643, 686));
-    using var ob = JsonDocument.Parse(System.Text.Encoding.Unicode.GetString(b, 13643, 686));
+    var ea = Convert.FromBase64String(before.RootElement.GetProperty("m_EntryDataString").GetString()!);
+    var eb = Convert.FromBase64String(after.RootElement.GetProperty("m_EntryDataString").GetString()!);
+    int Int(byte[] data, int pos) => System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(data.AsSpan(pos, 4));
+    int count = Int(ea, 0);
+    Check(ea.Length == eb.Length && Int(eb, 0) == count, "Índice mudou de tamanho.");
+    int selected = Enumerable.Range(0, count).Single(i => before.RootElement.GetProperty("m_InternalIds")[Int(ea, 4 + i * 28)].GetString()!.Replace('\\', '/').EndsWith("/" + Catalog.BundleName, StringComparison.Ordinal));
+    int offset = Int(ea, 4 + selected * 28 + 16);
+    int p = offset + 1;
+    for (int i = 0; i < 2; i++) p += a[p] + 1;
+    int oldLength = Int(a, p), newLength = Int(b, p); p += 4;
+    int shift = newLength - oldLength;
+    Check(shift == 0 && b.Length == a.Length + shift, "Delta de tamanho inesperado.");
+    Check(a.AsSpan(0, p - 4).SequenceEqual(b.AsSpan(0, p - 4)) && a.AsSpan(p + oldLength).SequenceEqual(b.AsSpan(p + newLength)), "Bytes de outros objetos mudaram.");
+    int moved = 0;
+    for (int i = 0; i < count; i++)
+        for (int field = 0; field < 7; field++)
+        {
+            int at = 4 + i * 28 + field * 4, expected = Int(ea, at);
+            if (field == 4 && expected >= p + oldLength) { expected += shift; moved++; }
+            Check(Int(eb, at) == expected, "Campo/offset incorreto no índice.");
+        }
+    Check(moved == 8, "Quantidade de referências posteriores incorreta.");
+    using var oa = JsonDocument.Parse(System.Text.Encoding.Unicode.GetString(a, p, oldLength));
+    using var ob = JsonDocument.Parse(System.Text.Encoding.Unicode.GetString(b, p, newLength));
     Check(oa.RootElement.EnumerateObject().Where(p => p.Value.GetRawText() != ob.RootElement.GetProperty(p.Name).GetRawText()).Select(p => p.Name).Order().SequenceEqual(new[] { "m_BundleSize", "m_Crc" }), "Campos inesperados.");
+});
+Test("Patch 3 recusa Patch 1 original e traduzido sem gravação", () =>
+{
+    foreach (bool translated in new[] { false, true })
+    {
+        var e = Fixture();
+        File.Copy(Path.Combine(project, "testes", "fontes", "patch1", "catalog.original.json"), e.CatalogPath, true);
+        File.Copy(translated
+            ? Path.Combine(project, "payload", "localization-string-tables-english(en)_assets_all_PTBR_PATCH1.bundle")
+            : Path.Combine(project, "testes", "fontes", "patch1", "bundle.original.bundle"), e.BundlePath, true);
+        var s = Snapshot(e); MustFail(() => e.Install(payload)); Unchanged(e, s);
+    }
+});
+Test("Backup Patch 1 permanece intacto ao instalar e restaurar Patch 3", () =>
+{
+    var e = Fixture();
+    string legacy = Path.Combine(e.Root, ".dragon-shelter-ptbr-patch1");
+    Directory.CreateDirectory(legacy);
+    foreach (string file in new[] { "catalog.original.json", "bundle.original.bundle" })
+        File.Copy(Path.Combine(project, "testes", "fontes", "patch1", file), Path.Combine(legacy, file));
+    File.WriteAllText(Path.Combine(legacy, "registro.json"), "registro Patch 1 preservado");
+    var oldHashes = Directory.GetFiles(legacy).ToDictionary(p => p, p => Catalog.Hash(File.ReadAllBytes(p)));
+    Check(e.BackupDirectory.EndsWith(".dragon-shelter-ptbr-patch3", StringComparison.Ordinal), "Namespace de backup incorreto.");
+    e.Install(payload); Check(e.Verify(payload) == InstallState.Installed, "Não instalado.");
+    e.Restore(); Originals(e);
+    Check(oldHashes.All(kv => Catalog.Hash(File.ReadAllBytes(kv.Key)) == kv.Value), "Backup Patch 1 alterado.");
 });
 Test("Verificação não grava arquivos", () => { var e = Fixture(); var s = Snapshot(e); Check(e.Verify(payload) == InstallState.Original, "Estado errado."); Unchanged(e, s); });
 Test("Instalação, reconhecimento, backups imutáveis e restauração", () =>
@@ -118,14 +177,14 @@ Test("Bloqueio real de catálogo: recuperação pendente e nova restauração", 
     Check(Catalog.Hash(File.ReadAllBytes(e.BundlePath)) == Catalog.OriginalBundle, "Rollback do bundle foi omitido.");
     e.Restore(); Originals(e);
 });
-Test("Patch 1 recusa os arquivos pre-patch sem gravação", () =>
+Test("Patch 3 recusa os arquivos pre-patch sem gravação", () =>
 {
     var e = Fixture();
     File.Copy(Path.Combine(project, "testes", "fontes", "pre-patch1", "catalog.original.json"), e.CatalogPath, true);
     File.Copy(Path.Combine(project, "testes", "fontes", "pre-patch1", "bundle.original.bundle"), e.BundlePath, true);
     var s = Snapshot(e); MustFail(() => e.Install(payload)); Unchanged(e, s);
 });
-Test("Backup V1 coexistente permanece intacto ao instalar e restaurar Patch 1", () =>
+Test("Backup V1 coexistente permanece intacto ao instalar e restaurar Patch 3", () =>
 {
     var e = Fixture();
     string legacy = Path.Combine(e.Root, ".dragon-shelter-ptbr-v1");
@@ -136,7 +195,30 @@ Test("Backup V1 coexistente permanece intacto ao instalar e restaurar Patch 1", 
     var oldHashes = Directory.GetFiles(legacy).ToDictionary(p => p, p => Catalog.Hash(File.ReadAllBytes(p)));
     e.Install(payload); Check(e.Verify(payload) == InstallState.Installed, "Não instalado."); e.Restore(); Originals(e);
     Check(oldHashes.All(kv => Catalog.Hash(File.ReadAllBytes(kv.Key)) == kv.Value), "Backup V1 foi alterado.");
-    Check(e.BackupDirectory != legacy, "Backup do Patch 1 colidiu com V1.");
+    Check(e.BackupDirectory != legacy, "Backup do Patch 3 colidiu com V1.");
 });
+
+Test("Patch 3 recusa Patch 2 original e traduzido sem gravacao", () =>
+{
+    foreach (bool translated in new[] { false, true })
+    {
+        var e = Fixture();
+        File.Copy(Path.Combine(project, "testes", "fontes", "patch2", "catalog.original.json"), e.CatalogPath, true);
+        File.Copy(translated ? Path.Combine(project, "payload", "localization-string-tables-english(en)_assets_all_PTBR_PATCH2.bundle") : Path.Combine(project, "testes", "fontes", "patch2", "bundle.original.bundle"), e.BundlePath, true);
+        var snapshot = Snapshot(e); MustFail(() => e.Install(payload)); Unchanged(e, snapshot);
+    }
+});
+Test("Backup Patch 2 preservado durante instalacao/restauracao Patch 3", () =>
+{
+    var e = Fixture(); var legacy = Path.Combine(e.Root, ".dragon-shelter-ptbr-patch2");
+    Directory.CreateDirectory(legacy);
+    foreach (string file in new[] { "catalog.original.json", "bundle.original.bundle" })
+        File.Copy(Path.Combine(project, "testes", "fontes", "patch2", file), Path.Combine(legacy, file));
+    File.WriteAllText(Path.Combine(legacy, "registro.json"), "registro Patch 2 preservado");
+    var hashes = Directory.GetFiles(legacy).ToDictionary(p => p, p => Catalog.Hash(File.ReadAllBytes(p)));
+    e.Install(payload); e.Restore(); Originals(e);
+    Check(hashes.All(kv => Catalog.Hash(File.ReadAllBytes(kv.Key)) == kv.Value), "Backup Patch 2 modificado");
+});
+
 File.WriteAllLines(Path.Combine(sandbox, "RESULTADOS.txt"), results.Append($"Total: {results.Count} testes aprovados. Instalador GUI não executado. Apenas cópias de teste alteradas."));
 Console.WriteLine($"Total: {results.Count} testes aprovados. Relatório: {sandbox}");
