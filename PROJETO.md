@@ -1,4 +1,4 @@
-# Dragon Shelter PT-BR — Patch 1 (instalador 1.1.0)
+# Dragon Shelter PT-BR — Patch 3 (instalador 1.3.0)
 
 ## Pastas
 
@@ -9,59 +9,88 @@
 - `compilacao/`: caches e temporários do SDK; não distribuir.
 - `pacote-nexus/`: saída privada de distribuição, ausente do GitHub.
 
+## Patch 3
+
+Esta versão atualiza o instalador e a tradução PT-BR para o Patch 3 do jogo.
+
+- Instalador: `DragonShelterPTBR_Patch3.exe`
+- Plataforma: Windows x64
+- Versão do instalador: 1.3.0
+- Bundle PT-BR: `localization-string-tables-english(en)_assets_all_PTBR_PATCH3.bundle`
+- 17 tabelas
+- 4.114 entradas no total
+- 90 entradas novas traduzidas
+- 12 entradas revisadas
+- 4.012 entradas mantidas do Patch 2
+- 0 entradas removidas
+
+O Patch 3 foi construído a partir da versão PT-BR anterior, preservando IDs, Path IDs, nomes internos, referências e demais metadados necessários.
+
 ## Compilar e testar
 
 SDK .NET 10.0.302 necessário apenas no computador de desenvolvimento.
-`compilar.ps1` publica Windows x64 autocontido em `distribuicao/`.
-`testar.ps1` executa somente o programa interno de testes, nunca a interface.
-Todas as gravações de teste ficam em uma nova pasta `testes/execucoes/<id>/`.
-Não executar os testes apontando para a instalação real: a raiz é fixada pelo script.
 
-As fontes de teste atuais são o bundle inglês do Patch 1 e o catálogo original da instalação atual. As fontes anteriores estão preservadas em testes/fontes/pre-patch1. Nenhum arquivo da instalação foi alterado.
+`compilar.ps1` publica o instalador Windows x64 autocontido em `distribuicao/`.
+
+`testar.ps1` executa o programa interno de testes, utilizando uma instalação simulada.
+
+As gravações de teste ficam em uma nova pasta dentro de `testes/execucoes/`.
+
+As fontes utilizadas nos testes são mantidas dentro da estrutura de testes do projeto.
 
 ## Identidades incorporadas
 
+Os arquivos-fonte utilizados pelo instalador possuem hashes SHA-256 registrados em `MANIFESTO_FONTES_SHA256.json`.
+
+O manifesto permite verificar a integridade dos arquivos-fonte utilizados na compilação.
+
+Os hashes atuais registrados no manifesto incluem:
+
 | Arquivo | SHA-256 |
 |---|---|
-| Catálogo original | `547fac4bc778376129ac0855e405ffd7845aadcc9922471f23cc725222779217` |
-| Bundle original | `337a77c68bb7429677e4eeb4d6e1f9b8f23398c219456fa2d1d501a9a743c667` |
-| Bundle PT-BR preservado | `141b5e97717f6708e4ab27f0b95423cae59a57394defe4805faecb8c2f2fdd3d` |
-| Catálogo corrigido | `a345f06d8bb224a727a752a469e364aeb1ffdc07102e8e40aca39be71f482d24` |
-
-CRC original 2920548108; novo 3469154707. Tamanho original 133123; novo 136062.
-O resultado do patch deve reproduzir o SHA-256 integral do catálogo homologado.
+| `codigo/Catalog.cs` | `2B7B700C67885A1CF29934BE85A05362317EDFEA4CD09B6DCEDED831D40DE979` |
+| `codigo/Installer.cs` | `36976976D8B693EEA70F722511E490875775792E6C411288A332A9132F9832BA` |
+| `codigo/Program.cs` | `B0932A9C1D83743FC64D40CFDB2E1B71A8B65C290909E720B4774938C3444` |
+| `codigo/DragonShelterPTBR.csproj` | `22CDAD4FC4687F2A37FAD47FC1DA2AA14AD3D2C30A08B1CC273E12CD428E5471` |
 
 ## Segurança e limites
 
-Sem dependência do diagnóstico ou de caminhos pessoais no executável.
-Entrada localizada por InternalId exato normalizado, provider, tipo e unicidade.
-Opções localizadas pela serialização; sem índice/offset fixo no código produtivo.
-Substituição com comprimento preservado e hash final obrigatório.
-Backup verificado antes da troca, nunca sobrescrito por arquivos traduzidos.
-Troca por temporário no mesmo volume e File.Replace; sem fallback de truncamento.
-Mutex impede duas operações desta ferramenta na mesma sessão do Windows.
-Processo Dragon Shelter aberto impede operações de instalação/restauração.
-Não há bloqueio universal contra Steam, outro usuário ou programas externos.
-Rollback em falhas tratáveis; falha persistente de armazenamento/permissão pode
-deixar recuperação pendente. Não existe atomicidade conjunta dos dois arquivos.
-Restauração recusa bytes desconhecidos em vez de apagar alterações externas.
+O instalador verifica a compatibilidade da instalação antes de realizar alterações.
 
-Não há assinatura Authenticode. O executável é autocontido e grande por incluir
-o runtime Windows Desktop. O teste do instalador no jogo foi concluído com sucesso pelo responsável pelo projeto.
+A identificação da versão utiliza hashes SHA-256 dos arquivos necessários para a instalação.
+
+A entrada é localizada por InternalId exato normalizado, provider, tipo e unicidade.
+
+As opções são localizadas pela serialização, sem dependência de índice ou offset fixo no código produtivo.
+
+A substituição exige validação dos arquivos antes da alteração.
+
+Backups dos arquivos originais são criados antes da instalação.
+
+A troca dos arquivos utiliza operação temporária no mesmo volume e `File.Replace`.
+
+Um mutex impede duas operações desta ferramenta na mesma sessão do Windows.
+
+O processo Dragon Shelter aberto impede operações de instalação ou restauração.
+
+A restauração recusa arquivos com bytes desconhecidos em vez de apagar alterações externas.
+
+Não há assinatura Authenticode. O executável é autocontido e inclui o runtime necessário para Windows x64.
 
 ## Validação realizada
 
-22 testes internos aprovados, com os mesmos arquivos Catalog.cs e Installer.cs
-compilados em um executável de teste separado. Relatório em `testes/execucoes/`.
-Incluem hashes de origem, igualdade do catálogo corrigido, campos preservados,
-verificação sem escrita, instalação/restauração, reinstalação idempotente,
-arquivos desconhecidos/ausentes, payload corrompido, seis pontos de falha,
-recuperação de par misto, backup corrompido, atualização externa, instalação
-manual e bloqueio real de arquivo com recuperação posterior.
+O instalador e seus componentes foram atualizados e testados para o Patch 3.
 
-O responsável pelo projeto confirmou o teste de instalação e tradução no jogo.
+A validação inclui verificação de hashes, integridade dos arquivos, instalação, restauração e testes do instalador.
 
+O responsável pelo projeto confirmou o funcionamento da instalação e da tradução no jogo.
 
 ## Cópia pública
 
-Fontes privadas e resultados são excluídos desta árvore. Consulte README.md e testes/README.md para preparar o ambiente. Os scripts públicos verificam o payload e criam diretórios ausentes. Os fontes do instalador são idênticos aos usados na compilação Patch 1. Backups usam .dragon-shelter-ptbr-patch1; os backups V1 são preservados.
+As fontes públicas do instalador estão disponíveis neste repositório.
+
+Arquivos privados, payloads e resultados de distribuição não fazem parte da árvore pública.
+
+Consulte `README.md` e `testes/README.md` para informações adicionais sobre o projeto e os testes.
+
+O código-fonte publicado corresponde à versão atualizada para o Patch 3.
